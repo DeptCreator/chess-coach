@@ -78,6 +78,7 @@ export interface CoachInsight {
   bestMove: string;
   evalBefore: number;
   evalAfter: number;
+  practiceFen?: string;
 }
 
 export interface LeaderboardEntry {
@@ -88,4 +89,22 @@ export interface LeaderboardEntry {
   wins: number;
   losses: number;
   rank: number;
+}
+
+export interface FriendProfile {
+  id: string;
+  username: string;
+  city: string;
+  rating: number;
+  avatarUrl: string | null;
+}
+
+export interface Friendship {
+  id: string;
+  status: "pending" | "accepted";
+  direction: "incoming" | "outgoing" | "accepted";
+  requester: FriendProfile;
+  addressee: FriendProfile;
+  friend: FriendProfile;
+  createdAt: string;
 }

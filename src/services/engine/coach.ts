@@ -1,6 +1,6 @@
 import { Chess, type Move } from "chess.js";
 import type { CoachClassification, CoachInsight, GameRecord } from "@/domain/types";
-import { createTemplateInsights } from "../mock/coach";
+import { createTemplateInsights } from "./template-coach";
 import { StockfishEngineClient, type EngineClient } from "./stockfish";
 
 interface ReplayPoint {
@@ -137,6 +137,7 @@ async function analyzePoint(engine: EngineClient, point: ReplayPoint): Promise<A
       bestMove: bestMoveUci,
       evalBefore,
       evalAfter,
+      practiceFen: point.beforeFen,
     },
   };
 }

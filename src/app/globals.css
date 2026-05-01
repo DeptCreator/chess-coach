@@ -230,6 +230,17 @@ button {
     padding: 0.625rem 0.75rem;
   }
 
+  .chess-board-stage {
+    width: min(100%, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+    justify-self: center;
+  }
+
+  .chess-board-stage > [data-testid="chess-board"] {
+    width: min(100%, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+  }
+
   .chess-board-stage > [data-testid="chess-board"] {
     transform: none;
   }

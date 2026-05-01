@@ -2,6 +2,8 @@ import type { Square } from "chess.js";
 import type {
   AuthSession,
   CoachInsight,
+  FriendProfile,
+  Friendship,
   GameMode,
   GameRecord,
   LeaderboardEntry,
@@ -33,6 +35,14 @@ export interface ProfileService {
   getCurrentProfile(): Promise<ServiceResult<UserProfile>>;
   updateProfile(input: Partial<Pick<UserProfile, "username" | "city" | "avatarUrl" | "isPro">>): Promise<ServiceResult<UserProfile>>;
   listLeaderboard(city?: string): Promise<ServiceResult<LeaderboardEntry[]>>;
+}
+
+export interface FriendsService {
+  searchProfiles(query: string): Promise<ServiceResult<FriendProfile[]>>;
+  listFriendships(): Promise<ServiceResult<Friendship[]>>;
+  sendRequest(profileId: string): Promise<ServiceResult<Friendship>>;
+  acceptRequest(friendshipId: string): Promise<ServiceResult<Friendship>>;
+  declineOrRemove(friendshipId: string): Promise<ServiceResult<null>>;
 }
 
 export interface AuthService {
@@ -85,9 +95,9 @@ export interface AppServices {
   auth: AuthService;
   identity: IdentityService;
   profiles: ProfileService;
+  friends: FriendsService;
   rooms: RoomService;
   ai: AiService;
   games: GameService;
   coach: CoachService;
-  source: "mock" | "supabase";
 }

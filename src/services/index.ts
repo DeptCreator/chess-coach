@@ -1,5 +1,5 @@
 import type { AppServices } from "./contracts";
-import { createBrowserMockServices, createMockServices } from "./mock";
+import { createDemoServices } from "./demo";
 import { hasSupabaseEnv } from "./supabase/client";
 import { createSupabaseServices } from "./supabase";
 
@@ -10,9 +10,7 @@ export function getAppServices(): AppServices {
     return browserServices;
   }
 
-  const mockServices =
-    process.env.NODE_ENV === "test" ? createMockServices() : createBrowserMockServices();
-  browserServices = hasSupabaseEnv() ? createSupabaseServices() : mockServices;
+  browserServices = hasSupabaseEnv() ? createSupabaseServices() : createDemoServices();
 
   return browserServices;
 }
@@ -24,6 +22,7 @@ export type {
   AiMoveResult,
   AiService,
   CoachService,
+  FriendsService,
   GameService,
   IdentityService,
   ProfileService,

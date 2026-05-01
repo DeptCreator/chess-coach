@@ -1,59 +1,60 @@
-# Chess AI Coach Arena
+# Mahiru Arena
 
-Chess AI Coach Arena is a startup-style chess learning platform, not just a chessboard. The product combines fast friend-link games, local play, Stockfish AI, post-game AI Coach insights, progress surfaces, a city leaderboard prototype, Pro monetization UI, and a premium 3D arena interface.
+Mahiru Arena is a chess training workspace built around a short product loop: play a legal game, review engine-backed coach cards, replay the mistake position, and compare progress against other players locally or by city.
 
 ## Who It Is For
 
-- Beginners who know the rules but need simple explanations after mistakes.
-- Casual and intermediate players who want fast games with friends.
-- Students and competitive players who care about progress, rating, streaks, and leaderboards.
-- Users who want a polished chess experience that works on desktop and mobile.
+- Beginners who need plain-language feedback after a game.
+- Casual and intermediate players who want fast local, AI, or friend-link games.
+- Students and club players who care about rating, history, city competition, and repeatable practice.
+- Reviewers who need to see a product-shaped chess prototype, not only a board demo.
 
-## Why It Is Valuable
+## Why It Stands Out
 
-Most chess apps either focus only on playing or overwhelm users with engine notation. Chess AI Coach Arena turns every game into a short training loop: play quickly, save the result, review key mistakes, compare progress, and return for the next game. The Pro layer and premium skins show how the prototype can become a real service.
+- The AI Coach is structured for learning: each card separates the played move, the better engine idea, and the reason it mattered.
+- Mistakes and blunders can be replayed immediately with `Practice this position`, turning post-game review into an active drill.
+- The leaderboard can switch between global ranking and the signed-in player's city, including a city rank badge such as `#2 in Jerusalem`.
+- Account-only Friends and Pro surfaces are gated behind real authenticated sessions, while guests can still play local and AI games.
+- The app presents a polished arena workspace with responsive board play, live clocks, history, theme controls, and a 3D background.
+
+## Product Loop
+
+1. Choose `Local`, `vs AI`, or an account-backed friend room.
+2. Play a legal chess game with clocks, move list, captured pieces, and board orientation controls.
+3. Finish the game and review AI Coach cards with eval swing, better move, and explanation.
+4. Practice from a mistake position, then reveal the engine hint after trying.
+5. Check profile, history, and global or city leaderboard progress.
 
 ## Key Features
 
-- Legal chess board powered by `chess.js`.
-- Click-to-move and drag-and-drop piece movement with rule validation.
-- Local two-player mode on one screen.
-- Friend-link multiplayer with WebSocket sync and reconnect restore.
-- Room setup before friend games:
-  - choose White, Black, or Random;
-  - choose Bullet 1+0, Blitz 5+0, or Rapid 10+0;
-  - player-side board orientation so your pieces start at the bottom.
-- Board flip control during play.
-- Live clocks for local and AI games, plus room clock display for friend games.
-- Resignation flow with a clear in-game notice.
-- Account panel with register, sign in, and sign out:
-  - mock auth works locally without credentials;
-  - Supabase auth works when environment variables are configured.
-- Stockfish-backed AI opponent with selectable difficulty.
-- AI Coach report with engine-backed insights and template fallback.
-- Saved game history with PGN preview.
-- Editable guest profile and rating display.
-- Global/city-style leaderboard prototype.
-- Light and dark themes.
-- Upgrade to Pro modal for monetization:
-  - deeper analysis;
-  - premium skins;
-  - unlimited archive;
-  - watermark-free share cards.
-- Premium responsive UI with a live Three.js/WebGL 3D arena background.
-- Mobile-first layout with the board visible and playable on small screens.
+- Legal chess rules powered by `chess.js`.
+- Click-to-move and drag-and-drop movement with promotion handling.
+- Local two-player mode and Stockfish-backed AI mode with selectable difficulty.
+- Friend-link multiplayer with account gating, room setup, WebSocket sync, reconnect restore, side selection, clocks, and resignation.
+- Post-game AI Coach with engine-backed insights and readable fallback cards.
+- Practice mode from mistake/blunder coach cards without a database migration.
+- Global/city leaderboard filter with city names and current-user city rank badge.
+- Account profile editing, saved history, and cloud-backed data when Supabase is configured.
+- Guest-safe local history and account-only Friends/Pro navigation.
+- Pro upgrade modal for the monetization path prototype.
+- Light/dark themes and responsive desktop/mobile layout.
+- Three.js arena scene behind the playable board.
+
+## Screenshots
+
+![Mahiru Arena desktop product view](docs/screenshots/desktop-product.png)
+
+![Mahiru Arena mobile product view](docs/screenshots/mobile-product.png)
 
 ## Tech Stack
 
 - Next.js, React, TypeScript
 - Tailwind CSS
-- Three.js for the live 3D arena
-- `chess.js` for legal chess rules
+- Three.js for the arena scene
+- `chess.js` for legal move generation
 - Stockfish 18 lite WASM worker for AI play and coach analysis
-- WebSocket room server for mock friend-link multiplayer
-- Supabase-ready service adapter and SQL migration
-- Supabase auth/profile persistence when credentials are configured
-- Local mock persistence for demo mode
+- WebSocket room server for friend-link multiplayer
+- Supabase-ready auth, profiles, rooms, history, friends, and coach storage
 - Vitest, Testing Library, and Playwright
 
 ## Setup
@@ -71,73 +72,27 @@ http://localhost:3000
 
 ## Environment Variables
 
-The app works without credentials using the mock local adapter.
-
-To enable the Supabase adapter:
+The production service adapter expects Supabase credentials:
 
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-project-url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Run:
+Apply the SQL migrations in `supabase/migrations/` for Supabase-backed auth, profiles, games, rooms, friends, and coach data.
+
+## Verification
 
 ```bash
-supabase/migrations/0001_initial_schema.sql
-```
-
-For guest friend-room play in Supabase mode, enable anonymous auth in the Supabase project.
-
-## Scripts
-
-```bash
-npm run dev
-npm run build
 npm test
-npm run lint
+npm run lint -- --quiet
+npm run build
 npm run test:e2e
 ```
 
-## Quality Checks
-
-Current verification:
-
-- Unit/component tests: `42 passed`
-- Playwright e2e tests: `11 passed`
-- Build: passes with `next build`
-- Lint: passes with `eslint`
-
-The e2e suite covers local moves, drag-and-drop, demo registration, AI response, friend room create/join/sync/reconnect, Pro modal, profile persistence, mobile layout, nonblank 3D canvas, reduced motion, board flip, time-control setup, side selection, and resignation notice.
-
-## Screenshots
-
-Local screenshot files are included for demo notes:
-
-- `desktop-redesign.png`
-- `mobile-redesign.png`
-
 ## Current Limitations
 
-- Stripe checkout is represented by Pro-ready UI only.
-- Supabase live mode requires real project credentials, the SQL migration, anonymous/email auth settings, and Realtime enabled for the `rooms` table.
-- AI Coach is a prototype: it uses engine-backed analysis where available and falls back to readable template insights.
-- The leaderboard is a product prototype backed by mock/Supabase profile data, not a full ranked matchmaking system.
-
-## Submission Notes
-
-This project targets the "Great" level of the challenge:
-
-- It is a web application, not a static board.
-- It supports legal chess, local play, AI play, themes, and responsive UI.
-- It supports real registration/sign-in flow through mock auth or Supabase auth.
-- It includes friend-link multiplayer with WebSockets.
-- It includes an AI Coach concept after games.
-- It includes profile, history, leaderboard, and retention surfaces.
-- It includes a visible Pro monetization path.
-- It has a unique visual identity with a live 3D chess arena.
-
-For final submission, provide:
-
-1. A deployed project link.
-2. A GitHub repository link.
-3. This README as the short product description.
+- Stripe checkout is not implemented; monetization is represented by the Pro modal and gated UI path.
+- Supabase live mode requires a configured project, migrations, auth settings, and Realtime for the `rooms` table.
+- Practice FEN is runtime-only for v1; no new coach insight migration is required.
+- The leaderboard is profile/rating based and is not a full ranked matchmaking system.

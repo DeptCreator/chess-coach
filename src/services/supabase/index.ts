@@ -11,6 +11,8 @@ import {
 import type {
   AuthSession,
   CoachInsight,
+  FriendProfile,
+  Friendship,
   GameRecord,
   LeaderboardEntry,
   RoomState,
@@ -21,6 +23,7 @@ import type {
   AppServices,
   AuthService,
   CoachService,
+  FriendsService,
   GameService,
   IdentityService,
   ProfileService,
@@ -29,7 +32,7 @@ import type {
   ServiceResult,
   CreateRoomOptions,
 } from "../contracts";
-import { createTemplateInsights } from "../mock/coach";
+import { createTemplateInsights } from "../engine/template-coach";
 import { createSupabaseBrowserClient } from "./client";
 import { StockfishAiService } from "../engine/ai";
 import { createEngineCoachInsights } from "../engine/coach";
@@ -39,11 +42,11 @@ export function createSupabaseServices(client: SupabaseClient = createSupabaseBr
     auth: new SupabaseAuthService(client),
     identity: new SupabaseIdentityService(client),
     profiles: new SupabaseProfileService(client),
+    friends: new SupabaseFriendsService(client),
     rooms: new SupabaseRoomService(client),
     ai: new StockfishAiService(),
     games: new SupabaseGameService(client),
     coach: new SupabaseCoachService(client),
-    source: "supabase",
   };
 }
 
@@ -68,12 +71,19 @@ class SupabaseAuthService implements AuthService {
   }
 
   async signUp(input: { email: string; password: string; username: string; city: string }): Promise<ServiceResult<AuthSession>> {
+    const username = normalizeUsername(input.username);
+    const usernameCheck = await assertUsernameAvailable(this.client, username);
+
+    if (usernameCheck.error) {
+      return fail(usernameCheck.error);
+    }
+
     const { data, error } = await this.client.auth.signUp({
       email: input.email.trim().toLowerCase(),
       password: input.password,
       options: {
         data: {
-          username: input.username,
+          username,
           city: input.city,
         },
       },
@@ -86,7 +96,7 @@ class SupabaseAuthService implements AuthService {
     await this.client.from("profiles").upsert({
       id: data.user.id,
       email: data.user.email,
-      username: input.username.trim() || data.user.email?.split("@")[0] || "Player",
+      username,
       city: input.city.trim() || "Local",
       avatar_url: null,
       is_pro: false,
@@ -129,13 +139,7 @@ class SupabaseIdentityService implements IdentityService {
       return ok(current.data.user.id);
     }
 
-    const { data, error } = await this.client.auth.signInAnonymously();
-
-    if (error || !data.user) {
-      return fail(error?.message ?? "Could not create anonymous Supabase player");
-    }
-
-    return ok(data.user.id);
+    return fail("Sign in to use account features.");
   }
 }
 
@@ -173,12 +177,22 @@ class SupabaseProfileService implements ProfileService {
       return fail("No authenticated Supabase user");
     }
 
+    const username = input.username === undefined ? undefined : normalizeUsername(input.username);
+
+    if (username) {
+      const usernameCheck = await assertUsernameAvailable(this.client, username, userData.user.id);
+
+      if (usernameCheck.error) {
+        return fail(usernameCheck.error);
+      }
+    }
+
     const { data, error } = await this.client
       .from("profiles")
       .upsert({
         id: userData.user.id,
         email: userData.user.email,
-        username: input.username,
+        username,
         city: input.city,
         avatar_url: input.avatarUrl,
         is_pro: input.isPro,
@@ -239,10 +253,158 @@ class SupabaseProfileService implements ProfileService {
   }
 }
 
+class SupabaseFriendsService implements FriendsService {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async searchProfiles(query: string): Promise<ServiceResult<FriendProfile[]>> {
+    const userId = await getCurrentUserId(this.client);
+
+    if (!userId.data) {
+      return fail(userId.error ?? "Sign in to search players.");
+    }
+
+    const term = query.trim();
+
+    if (term.length < 2) {
+      return ok([]);
+    }
+
+    const { data, error } = await this.client
+      .from("profiles")
+      .select("id, username, city, rating, avatar_url")
+      .ilike("username", `%${term}%`)
+      .neq("id", userId.data)
+      .order("username", { ascending: true })
+      .limit(10);
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    return ok((data ?? []).map(mapFriendProfile));
+  }
+
+  async listFriendships(): Promise<ServiceResult<Friendship[]>> {
+    const userId = await getCurrentUserId(this.client);
+
+    if (!userId.data) {
+      return fail(userId.error ?? "Sign in to load friends.");
+    }
+
+    const { data, error } = await this.client
+      .from("friendships")
+      .select(
+        "id, status, created_at, requester:profiles!friendships_requester_id_fkey(id, username, city, rating, avatar_url), addressee:profiles!friendships_addressee_id_fkey(id, username, city, rating, avatar_url)",
+      )
+      .or(`requester_id.eq.${userId.data},addressee_id.eq.${userId.data}`)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    return ok((data ?? []).map((row) => mapFriendship(row, userId.data!)).filter(Boolean) as Friendship[]);
+  }
+
+  async sendRequest(profileId: string): Promise<ServiceResult<Friendship>> {
+    const userId = await getCurrentUserId(this.client);
+
+    if (!userId.data) {
+      return fail(userId.error ?? "Sign in to add friends.");
+    }
+
+    if (userId.data === profileId) {
+      return fail("You cannot add yourself.");
+    }
+
+    const existing = await this.client
+      .from("friendships")
+      .select("id")
+      .or(`and(requester_id.eq.${userId.data},addressee_id.eq.${profileId}),and(requester_id.eq.${profileId},addressee_id.eq.${userId.data})`)
+      .maybeSingle();
+
+    if (existing.error) {
+      return fail(existing.error.message);
+    }
+
+    if (existing.data) {
+      return fail("Friend request already exists.");
+    }
+
+    const { data, error } = await this.client
+      .from("friendships")
+      .insert({
+        requester_id: userId.data,
+        addressee_id: profileId,
+        status: "pending",
+      })
+      .select(
+        "id, status, created_at, requester:profiles!friendships_requester_id_fkey(id, username, city, rating, avatar_url), addressee:profiles!friendships_addressee_id_fkey(id, username, city, rating, avatar_url)",
+      )
+      .single();
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    const friendship = mapFriendship(data, userId.data);
+    return friendship ? ok(friendship) : fail("Could not load friend request.");
+  }
+
+  async acceptRequest(friendshipId: string): Promise<ServiceResult<Friendship>> {
+    const userId = await getCurrentUserId(this.client);
+
+    if (!userId.data) {
+      return fail(userId.error ?? "Sign in to accept friends.");
+    }
+
+    const { data, error } = await this.client
+      .from("friendships")
+      .update({ status: "accepted", updated_at: new Date().toISOString() })
+      .eq("id", friendshipId)
+      .eq("addressee_id", userId.data)
+      .select(
+        "id, status, created_at, requester:profiles!friendships_requester_id_fkey(id, username, city, rating, avatar_url), addressee:profiles!friendships_addressee_id_fkey(id, username, city, rating, avatar_url)",
+      )
+      .single();
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    const friendship = mapFriendship(data, userId.data);
+    return friendship ? ok(friendship) : fail("Could not accept friend request.");
+  }
+
+  async declineOrRemove(friendshipId: string): Promise<ServiceResult<null>> {
+    const userId = await getCurrentUserId(this.client);
+
+    if (!userId.data) {
+      return fail(userId.error ?? "Sign in to manage friends.");
+    }
+
+    const { error } = await this.client
+      .from("friendships")
+      .delete()
+      .eq("id", friendshipId)
+      .or(`requester_id.eq.${userId.data},addressee_id.eq.${userId.data}`);
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    return ok(null);
+  }
+}
+
 class SupabaseRoomService implements RoomService {
   constructor(private readonly client: SupabaseClient) {}
 
   async createRoom(playerId: string | null, options: CreateRoomOptions = defaultRoomOptions): Promise<ServiceResult<RoomState>> {
+    if (!playerId) {
+      return fail("Sign in to create friend rooms.");
+    }
+
     const initial = createInitialGame();
     const id = `room-${crypto.randomUUID()}`;
     const hostColor = resolveHostColor(options.colorChoice);
@@ -276,6 +438,10 @@ class SupabaseRoomService implements RoomService {
   }
 
   async joinRoom(roomId: string, playerId: string | null): Promise<ServiceResult<RoomState>> {
+    if (!playerId) {
+      return fail("Sign in to join friend rooms.");
+    }
+
     const current = await this.loadRoom(roomId);
 
     if (!current.data) {
@@ -316,6 +482,10 @@ class SupabaseRoomService implements RoomService {
     playerId: string | null,
     move: MoveInput & { from: Square; to: Square },
   ): Promise<ServiceResult<RoomState>> {
+    if (!playerId) {
+      return fail("Sign in to play friend rooms.");
+    }
+
     const current = await this.loadRoom(roomId);
 
     if (!current.data) {
@@ -363,6 +533,10 @@ class SupabaseRoomService implements RoomService {
   }
 
   async resign(roomId: string, playerId: string | null): Promise<ServiceResult<RoomState>> {
+    if (!playerId) {
+      return fail("Sign in to play friend rooms.");
+    }
+
     const current = await this.loadRoom(roomId);
 
     if (!current.data) {
@@ -553,6 +727,53 @@ function mapProfile(row: Record<string, any>): UserProfile {
   };
 }
 
+function mapFriendProfile(row: Record<string, any>): FriendProfile {
+  return {
+    id: row.id,
+    username: row.username,
+    city: row.city ?? "",
+    rating: row.rating ?? 1200,
+    avatarUrl: row.avatar_url ?? null,
+  };
+}
+
+function mapFriendship(row: Record<string, any>, currentUserId: string): Friendship | null {
+  const requester = firstRelated(row.requester);
+  const addressee = firstRelated(row.addressee);
+
+  if (!requester || !addressee) {
+    return null;
+  }
+
+  const requesterProfile = mapFriendProfile(requester);
+  const addresseeProfile = mapFriendProfile(addressee);
+  const status = row.status === "accepted" ? "accepted" : "pending";
+  const direction =
+    status === "accepted"
+      ? "accepted"
+      : requesterProfile.id === currentUserId
+        ? "outgoing"
+        : "incoming";
+
+  return {
+    id: row.id,
+    status,
+    direction,
+    requester: requesterProfile,
+    addressee: addresseeProfile,
+    friend: requesterProfile.id === currentUserId ? addresseeProfile : requesterProfile,
+    createdAt: row.created_at,
+  };
+}
+
+function firstRelated(value: unknown): Record<string, any> | null {
+  if (Array.isArray(value)) {
+    return (value[0] as Record<string, any> | undefined) ?? null;
+  }
+
+  return (value as Record<string, any> | null) ?? null;
+}
+
 function mapRoom(row: Record<string, any>): RoomState {
   return {
     id: row.id,
@@ -634,6 +855,50 @@ function createDefaultProfileRow(userId: string) {
     avatar_url: null,
     is_pro: false,
   };
+}
+
+async function getCurrentUserId(client: SupabaseClient): Promise<ServiceResult<string>> {
+  const { data, error } = await client.auth.getUser();
+
+  if (error) {
+    return fail(error.message);
+  }
+
+  if (!data.user) {
+    return fail("Sign in required.");
+  }
+
+  return ok(data.user.id);
+}
+
+async function assertUsernameAvailable(
+  client: SupabaseClient,
+  username: string,
+  currentUserId?: string,
+): Promise<ServiceResult<null>> {
+  if (!username || username.length < 2) {
+    return fail("Username must be at least 2 characters.");
+  }
+
+  const { data, error } = await client
+    .from("profiles")
+    .select("id")
+    .ilike("username", username)
+    .maybeSingle();
+
+  if (error) {
+    return fail(error.message);
+  }
+
+  if (data && data.id !== currentUserId) {
+    return fail("Username is already taken.");
+  }
+
+  return ok(null);
+}
+
+function normalizeUsername(value: string): string {
+  return value.trim() || "Player";
 }
 
 export function toSupabaseUserId(value: string | null): string | null {

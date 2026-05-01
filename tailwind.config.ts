@@ -5,6 +5,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        border: "var(--line)",
+        input: "var(--line)",
+        ring: "var(--teal)",
+        background: "var(--surface)",
+        foreground: "var(--text)",
+        card: "var(--surface)",
+        "card-foreground": "var(--text)",
+        popover: "var(--surface)",
+        "popover-foreground": "var(--text)",
+        primary: "var(--teal)",
+        "primary-foreground": "#0a0d0f",
+        secondary: "var(--surface-2)",
+        "secondary-foreground": "var(--text)",
+        muted: "var(--surface-2)",
+        "muted-foreground": "var(--muted)",
+        accent: "rgba(255, 255, 255, 0.08)",
+        "accent-foreground": "var(--text)",
+        destructive: "var(--coral)",
+        "destructive-foreground": "#0a0d0f",
         graphite: {
           950: "#0a0d0f",
           900: "#101417",

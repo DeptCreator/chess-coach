@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { GameRecord } from "@/domain/types";
 import { classifyDrop, createEngineCoachInsights } from "./coach";
+import { createTemplateInsights } from "./template-coach";
 import type { EngineClient } from "./stockfish";
 
 class FakeCoachEngine implements EngineClient {
@@ -58,6 +59,7 @@ describe("engine coach", () => {
 
     expect(insights.length).toBeGreaterThanOrEqual(3);
     expect(insights[0].bestMove).toBe("e2e4");
+    expect(insights[0].practiceFen).toMatch(/ w /);
   });
 
   it("includes high swing candidates for longer games", async () => {
@@ -76,5 +78,21 @@ describe("engine coach", () => {
     expect(classifyDrop(80, "h3", { from: "g1", to: "f3" })).toBe("inaccuracy");
     expect(classifyDrop(220, "Qh5", { from: "b1", to: "c3" })).toBe("mistake");
     expect(classifyDrop(400, "Qxf7", { from: "e7", to: "e5" })).toBe("blunder");
+  });
+
+  it("adds practice positions to template insights when PGN is valid", () => {
+    const insights = createTemplateInsights(game);
+
+    expect(insights.length).toBeGreaterThan(0);
+    expect(insights.every((insight) => typeof insight.practiceFen === "string")).toBe(true);
+  });
+
+  it("guarantees a practice-ready mistake in template insights", () => {
+    const insights = createTemplateInsights({
+      ...game,
+      pgn: "1. f3 e5 2. g4 Qh4#",
+    });
+
+    expect(insights.some((insight) => insight.classification === "mistake" && insight.practiceFen)).toBe(true);
   });
 });

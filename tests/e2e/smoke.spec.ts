@@ -29,12 +29,38 @@ async function canvasHasPixels(page: import("@playwright/test").Page) {
   });
 }
 
-test("local move, room link, and pro modal smoke test", async ({ page }) => {
+async function signIn(page: import("@playwright/test").Page, account: "primary" | "secondary" = "primary") {
+  const suffix = account === "secondary" ? "_2" : "";
+  const email = process.env[`E2E_AUTH_EMAIL${suffix}`];
+  const password = process.env[`E2E_AUTH_PASSWORD${suffix}`];
+
+  if (!email || !password) {
+    test.skip(true, `Set E2E_AUTH_EMAIL${suffix} and E2E_AUTH_PASSWORD${suffix} to run signed-in account flows.`);
+    throw new Error("Missing signed-in E2E credentials.");
+  }
+
+  await page.goto("/login");
+  await page.getByLabel(/email address/i).fill(email);
+  await page.getByLabel(/^password$/i).fill(password);
+  await page.getByRole("button", { name: /enter arena/i }).click();
+  await page.waitForURL("**/");
+  await expect.poll(async () => (await renderedState(page)).accountState, { timeout: 15000 }).toBe("account");
+
+  return email;
+}
+
+test("guest local and AI play hide account-gated entry points", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByTestId("chess-board")).toBeVisible();
   await expect(page.getByTestId("arena-scene-canvas")).toBeVisible();
   await expect.poll(async () => canvasHasPixels(page), { timeout: 10000 }).toBe(true);
+  await expect.poll(async () => (await renderedState(page)).accountState).toBe("guest");
+  await expect(page.getByRole("button", { name: /friends/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^pro$/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /friend link/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /create room/i })).toHaveCount(0);
+
   await page.getByTestId("square-e2").click();
   await expect(page.getByTestId("hint-e4")).toBeVisible();
   await page.getByTestId("square-e4").click();
@@ -42,6 +68,14 @@ test("local move, room link, and pro modal smoke test", async ({ page }) => {
 
   const state = await renderedState(page);
   expect(state.lastMove.san).toBe("e4");
+
+  await page.getByRole("button", { name: /vs ai/i }).click();
+  await page.getByLabel(/ai difficulty/i).selectOption("beginner");
+  expect((await renderedState(page)).mode).toBe("ai");
+});
+
+test("signed-in account can create room links and open Pro", async ({ page }) => {
+  await signIn(page);
 
   await page.getByRole("button", { name: /create room/i }).click();
   await expect(page.getByRole("button", { name: /copy/i })).toBeVisible();
@@ -109,7 +143,7 @@ test("mode change resets the current game and board can flip", async ({ page }) 
 });
 
 test("friend room supports side and time setup", async ({ page }) => {
-  await page.goto("/");
+  await signIn(page);
 
   await page.getByRole("button", { name: /^black$/i }).click();
   await page.getByLabel(/time control/i).selectOption("bullet");
@@ -132,22 +166,17 @@ test("resign shows a clear resignation notice", async ({ page }) => {
   expect((await renderedState(page)).status).toBe("resigned");
 });
 
-test("registration and drag move work in demo mode", async ({ page }) => {
-  await page.goto("/");
-
-  await page.getByLabel(/^email$/i).fill("demo@example.com");
-  await page.getByLabel(/^password$/i).fill("secret123");
-  await page.getByRole("button", { name: /create account/i }).click();
-  await expect(page.getByText("Account created.")).toBeVisible();
-  await expect(page.getByText("demo@example.com")).toBeVisible();
+test("signed-in account drag move works", async ({ page }) => {
+  const email = await signIn(page);
+  await expect(page.getByText(email)).toBeVisible();
 
   await page.dragAndDrop('[data-testid="square-e2"]', '[data-testid="square-e4"]');
   await expect(page.getByText("e4")).toBeVisible();
   expect((await renderedState(page)).lastMove.san).toBe("e4");
 });
 
-test("profile edit persists after reload in mock mode", async ({ page }) => {
-  await page.goto("/");
+test("profile edit persists after reload for signed-in account", async ({ page }) => {
+  await signIn(page);
 
   const profilePanel = page.locator("section").filter({ hasText: "Profile" });
   await profilePanel.getByLabel(/username/i).fill("Mahiru");
@@ -161,7 +190,7 @@ test("profile edit persists after reload in mock mode", async ({ page }) => {
 });
 
 test("coach report appears after a completed local game", async ({ page }) => {
-  await page.goto("/");
+  await signIn(page);
 
   for (const [from, to] of [
     ["f2", "f3"],
@@ -186,7 +215,9 @@ test("friend room create, join, move sync, and reconnect", async ({ browser }) =
   white.on("websocket", (socket) => websocketUrls.push(socket.url()));
   black.on("websocket", (socket) => websocketUrls.push(socket.url()));
 
-  await white.goto("/");
+  await signIn(white);
+  await signIn(black, "secondary");
+
   await white.getByRole("button", { name: /create room/i }).click();
   await expect(white.getByRole("button", { name: /copy/i })).toBeVisible({ timeout: 15000 });
 

@@ -63,6 +63,17 @@ function createFakeClient() {
   return { client, state };
 }
 
+function createUnauthenticatedFakeClient() {
+  return {
+    auth: {
+      getUser: async () => ({ data: { user: null }, error: null }),
+    },
+    from: () => {
+      throw new Error("Unauthenticated service calls should fail before querying Supabase.");
+    },
+  };
+}
+
 describe("Supabase services", () => {
   it("bootstraps a default anonymous profile when none exists", async () => {
     const { client, state } = createFakeClient();
@@ -85,7 +96,7 @@ describe("Supabase services", () => {
     const services = createSupabaseServices(client as never);
     const result = await services.games.saveCompletedGame({
       whiteId: userId,
-      blackId: "mock-ai",
+      blackId: "system-ai",
       mode: "ai",
       pgn: "1. e4 e5",
       finalFen: "fen",
@@ -99,7 +110,28 @@ describe("Supabase services", () => {
 
   it("keeps valid UUIDs and clears invalid IDs", () => {
     expect(toSupabaseUserId(userId)).toBe(userId);
-    expect(toSupabaseUserId("mock-ai")).toBeNull();
+    expect(toSupabaseUserId("system-ai")).toBeNull();
     expect(toSupabaseUserId(null)).toBeNull();
+  });
+
+  it("rejects unauthenticated friends actions before querying Supabase", async () => {
+    const services = createSupabaseServices(createUnauthenticatedFakeClient() as never);
+
+    await expect(services.friends.searchProfiles("mahiru")).resolves.toMatchObject({ data: null });
+    await expect(services.friends.listFriendships()).resolves.toMatchObject({ data: null });
+    await expect(services.friends.sendRequest(userId)).resolves.toMatchObject({ data: null });
+    await expect(services.friends.acceptRequest(userId)).resolves.toMatchObject({ data: null });
+    await expect(services.friends.declineOrRemove(userId)).resolves.toMatchObject({ data: null });
+  });
+
+  it("rejects unauthenticated room actions before querying Supabase", async () => {
+    const services = createSupabaseServices(createUnauthenticatedFakeClient() as never);
+
+    await expect(services.rooms.createRoom(null)).resolves.toMatchObject({ data: null });
+    await expect(services.rooms.joinRoom("room-test", null)).resolves.toMatchObject({ data: null });
+    await expect(
+      services.rooms.submitMove("room-test", null, { from: "e2", to: "e4" } as never),
+    ).resolves.toMatchObject({ data: null });
+    await expect(services.rooms.resign("room-test", null)).resolves.toMatchObject({ data: null });
   });
 });

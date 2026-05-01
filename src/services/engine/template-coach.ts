@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import type { CoachInsight, CoachClassification, GameRecord } from "@/domain/types";
+import type { CoachClassification, CoachInsight, GameRecord } from "@/domain/types";
 
 const classificationCycle: CoachClassification[] = [
   "best move",
@@ -21,6 +21,7 @@ export function createTemplateInsights(game: GameRecord): CoachInsight[] {
   }
 
   const moves = chess.history({ verbose: true });
+  const practiceFens = collectPracticeFens(game.pgn);
 
   if (moves.length === 0) {
     return fallbackInsights();
@@ -32,23 +33,53 @@ export function createTemplateInsights(game: GameRecord): CoachInsight[] {
     moves[moves.length - 1],
   ];
 
-  return selected.map((move, index) => {
+  const insights = selected.map((move, index) => {
     const classification = move.captured
       ? "good"
       : move.san.includes("#")
         ? "best move"
         : classificationCycle[Math.min(index + 1, classificationCycle.length - 1)];
+    const moveIndex = moves.indexOf(move);
+    const practiceFen = practiceFens[moveIndex];
 
     return {
-      moveNumber: Math.floor((moves.indexOf(move) + 2) / 2),
+      moveNumber: Math.floor((moveIndex + 2) / 2),
       moveSan: move.san,
       classification,
       explanation: explanationFor(classification, move.san),
-      bestMove: move.san,
+      bestMove: bestMoveForTemplateInsight(practiceFen, move.san),
       evalBefore: 20 - index * 40,
       evalAfter: classification === "blunder" ? -280 : 35 - index * 35,
+      practiceFen,
     };
   });
+
+  return ensurePracticeMistake(insights);
+}
+
+function collectPracticeFens(pgn: string): string[] {
+  const source = new Chess();
+
+  try {
+    source.loadPgn(pgn);
+  } catch {
+    return [];
+  }
+
+  const moves = source.history({ verbose: true });
+  const replay = new Chess();
+  const fens: string[] = [];
+
+  for (const move of moves) {
+    fens.push(replay.fen());
+    const applied = replay.move(move.san);
+
+    if (!applied) {
+      return [];
+    }
+  }
+
+  return fens;
 }
 
 function fallbackInsights(): CoachInsight[] {
@@ -81,6 +112,42 @@ function fallbackInsights(): CoachInsight[] {
       evalAfter: -45,
     },
   ];
+}
+
+function ensurePracticeMistake(insights: CoachInsight[]): CoachInsight[] {
+  if (insights.some((insight) => insight.practiceFen && (insight.classification === "mistake" || insight.classification === "blunder"))) {
+    return insights;
+  }
+
+  const practiceIndex = insights.findIndex((insight) => insight.practiceFen && insight.classification !== "best move");
+
+  if (practiceIndex < 0) {
+    return insights;
+  }
+
+  return insights.map((insight, index) =>
+    index === practiceIndex
+      ? {
+          ...insight,
+          classification: "mistake",
+          explanation: explanationFor("mistake", insight.moveSan),
+          evalAfter: Math.min(insight.evalAfter, -120),
+        }
+      : insight,
+  );
+}
+
+function bestMoveForTemplateInsight(fen: string | undefined, playedSan: string): string {
+  if (!fen) {
+    return playedSan;
+  }
+
+  const chess = new Chess(fen);
+  const legalMoves = chess.moves();
+  const preferred = ["e4", "d4", "Nf3", "Nc3", "c4", "e5", "d5", "Nf6", "Nc6", "c5"];
+  const preferredMove = preferred.find((move) => legalMoves.includes(move) && move !== playedSan);
+
+  return preferredMove ?? legalMoves.find((move) => move !== playedSan) ?? playedSan;
 }
 
 function explanationFor(classification: CoachClassification, san: string): string {
