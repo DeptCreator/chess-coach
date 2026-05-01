@@ -8,6 +8,7 @@ import {
   type MoveInput,
 } from "@/domain/chess";
 import type {
+  AuthSession,
   CoachInsight,
   GameRecord,
   LeaderboardEntry,
@@ -17,6 +18,7 @@ import type {
 } from "@/domain/types";
 import type {
   AppServices,
+  AuthService,
   CoachService,
   GameService,
   IdentityService,
@@ -33,6 +35,8 @@ import { getBrowserStorage, readJson, type StorageLike, writeJson } from "./stor
 
 const keys = {
   playerId: "arena:player-id",
+  authSession: "arena:auth-session",
+  authUsers: "arena:auth-users",
   profile: "arena:profile",
   rooms: "arena:rooms",
   games: "arena:games",
@@ -41,6 +45,7 @@ const keys = {
 
 const defaultProfile: UserProfile = {
   id: "guest-local",
+  email: null,
   username: "Guest Player",
   city: "Tel Aviv",
   rating: 1200,
@@ -68,6 +73,7 @@ const timeControlSeconds: Record<TimeControl, number> = {
 
 export function createMockServices(storage: StorageLike = getBrowserStorage()): AppServices {
   return {
+    auth: new MockAuthService(storage),
     identity: new MockIdentityService(storage),
     profiles: new MockProfileService(storage),
     rooms: new MockRoomService(storage),
@@ -80,6 +86,7 @@ export function createMockServices(storage: StorageLike = getBrowserStorage()): 
 
 export function createBrowserMockServices(storage: StorageLike = getBrowserStorage()): AppServices {
   return {
+    auth: new MockAuthService(storage),
     identity: new MockIdentityService(storage),
     profiles: new MockProfileService(storage),
     rooms: new BrowserMockRoomService(),
@@ -90,10 +97,100 @@ export function createBrowserMockServices(storage: StorageLike = getBrowserStora
   };
 }
 
+interface MockAuthUser {
+  id: string;
+  email: string;
+  password: string;
+  username: string;
+  city: string;
+}
+
+class MockAuthService implements AuthService {
+  constructor(private readonly storage: StorageLike) {}
+
+  async getSession(): Promise<ServiceResult<AuthSession | null>> {
+    return ok(readJson<AuthSession | null>(this.storage, keys.authSession, null));
+  }
+
+  async signUp(input: { email: string; password: string; username: string; city: string }): Promise<ServiceResult<AuthSession>> {
+    const email = input.email.trim().toLowerCase();
+    const users = readJson<Record<string, MockAuthUser>>(this.storage, keys.authUsers, {});
+
+    if (!email || input.password.length < 6) {
+      return fail("Enter an email and a password with at least 6 characters.");
+    }
+
+    if (users[email]) {
+      return fail("Account already exists. Sign in instead.");
+    }
+
+    const user: MockAuthUser = {
+      id: createId("user"),
+      email,
+      password: input.password,
+      username: input.username.trim() || email.split("@")[0],
+      city: input.city.trim() || "Local",
+    };
+    users[email] = user;
+    writeJson(this.storage, keys.authUsers, users);
+
+    const session = { userId: user.id, email: user.email };
+    this.storage.setItem(keys.playerId, user.id);
+    writeJson(this.storage, keys.authSession, session);
+    writeJson(this.storage, keys.profile, {
+      ...defaultProfile,
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      city: user.city,
+    });
+
+    return ok(session);
+  }
+
+  async signIn(input: { email: string; password: string }): Promise<ServiceResult<AuthSession>> {
+    const email = input.email.trim().toLowerCase();
+    const users = readJson<Record<string, MockAuthUser>>(this.storage, keys.authUsers, {});
+    const user = users[email];
+
+    if (!user || user.password !== input.password) {
+      return fail("Invalid email or password.");
+    }
+
+    const session = { userId: user.id, email: user.email };
+    this.storage.setItem(keys.playerId, user.id);
+    writeJson(this.storage, keys.authSession, session);
+    writeJson(this.storage, keys.profile, {
+      ...readJson(this.storage, keys.profile, defaultProfile),
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      city: user.city,
+    });
+
+    return ok(session);
+  }
+
+  async signOut(): Promise<ServiceResult<null>> {
+    this.storage.removeItem(keys.authSession);
+    this.storage.removeItem(keys.playerId);
+    writeJson(this.storage, keys.profile, defaultProfile);
+
+    return ok(null);
+  }
+}
+
 class MockIdentityService implements IdentityService {
   constructor(private readonly storage: StorageLike) {}
 
   async getPlayerId(): Promise<ServiceResult<string>> {
+    const session = readJson<AuthSession | null>(this.storage, keys.authSession, null);
+
+    if (session?.userId) {
+      this.storage.setItem(keys.playerId, session.userId);
+      return ok(session.userId);
+    }
+
     const existing = this.storage.getItem(keys.playerId);
 
     if (existing) {

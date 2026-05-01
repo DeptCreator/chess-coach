@@ -1,5 +1,6 @@
 import type { Square } from "chess.js";
 import type {
+  AuthSession,
   CoachInsight,
   GameMode,
   GameRecord,
@@ -32,6 +33,13 @@ export interface ProfileService {
   getCurrentProfile(): Promise<ServiceResult<UserProfile>>;
   updateProfile(input: Partial<Pick<UserProfile, "username" | "city" | "avatarUrl" | "isPro">>): Promise<ServiceResult<UserProfile>>;
   listLeaderboard(city?: string): Promise<ServiceResult<LeaderboardEntry[]>>;
+}
+
+export interface AuthService {
+  getSession(): Promise<ServiceResult<AuthSession | null>>;
+  signUp(input: { email: string; password: string; username: string; city: string }): Promise<ServiceResult<AuthSession>>;
+  signIn(input: { email: string; password: string }): Promise<ServiceResult<AuthSession>>;
+  signOut(): Promise<ServiceResult<null>>;
 }
 
 export interface CreateRoomOptions {
@@ -74,6 +82,7 @@ export interface CoachService {
 }
 
 export interface AppServices {
+  auth: AuthService;
   identity: IdentityService;
   profiles: ProfileService;
   rooms: RoomService;

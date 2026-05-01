@@ -81,7 +81,7 @@ describe("Arena UI", () => {
 
   it("renders and changes AI difficulty", async () => {
     render(<ArenaApp />);
-    await screen.findByDisplayValue("Guest Player");
+    await screen.findAllByDisplayValue("Guest Player");
 
     fireEvent.click(screen.getByRole("button", { name: /vs ai/i }));
     const difficulty = await screen.findByLabelText(/ai difficulty/i);
@@ -93,8 +93,8 @@ describe("Arena UI", () => {
   it("saves edited profile details", async () => {
     render(<ArenaApp />);
 
-    const username = await screen.findByLabelText(/username/i);
-    const city = await screen.findByLabelText(/city/i);
+    const username = (await screen.findAllByLabelText(/username/i)).at(-1)!;
+    const city = (await screen.findAllByLabelText(/city/i)).at(-1)!;
     expect(screen.getByText("mock")).toBeInTheDocument();
 
     fireEvent.change(username, { target: { value: "Mahiru" } });
@@ -103,5 +103,19 @@ describe("Arena UI", () => {
 
     await waitFor(() => expect(screen.getAllByText("Mahiru").length).toBeGreaterThan(0));
     expect(screen.getByText(/Jerusalem/i)).toBeInTheDocument();
+  });
+
+  it("registers a mock account", async () => {
+    render(<ArenaApp />);
+
+    fireEvent.click(screen.getByRole("button", { name: /register/i }));
+    fireEvent.change(await screen.findByLabelText(/^email$/i), { target: { value: "player@example.com" } });
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: "secret123" } });
+    fireEvent.change(screen.getAllByLabelText(/username/i)[0], { target: { value: "Player One" } });
+    fireEvent.change(screen.getAllByLabelText(/city/i)[0], { target: { value: "Almaty" } });
+    fireEvent.click(screen.getByRole("button", { name: /create account/i }));
+
+    expect(await screen.findByText("Account created.")).toBeInTheDocument();
+    expect(screen.getByText("player@example.com")).toBeInTheDocument();
   });
 });

@@ -132,11 +132,26 @@ test("resign shows a clear resignation notice", async ({ page }) => {
   expect((await renderedState(page)).status).toBe("resigned");
 });
 
+test("registration and drag move work in demo mode", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel(/^email$/i).fill("demo@example.com");
+  await page.getByLabel(/^password$/i).fill("secret123");
+  await page.getByRole("button", { name: /create account/i }).click();
+  await expect(page.getByText("Account created.")).toBeVisible();
+  await expect(page.getByText("demo@example.com")).toBeVisible();
+
+  await page.dragAndDrop('[data-testid="square-e2"]', '[data-testid="square-e4"]');
+  await expect(page.getByText("e4")).toBeVisible();
+  expect((await renderedState(page)).lastMove.san).toBe("e4");
+});
+
 test("profile edit persists after reload in mock mode", async ({ page }) => {
   await page.goto("/");
 
-  await page.getByLabel(/username/i).fill("Mahiru");
-  await page.getByLabel(/city/i).fill("Jerusalem");
+  const profilePanel = page.locator("section").filter({ hasText: "Profile" });
+  await profilePanel.getByLabel(/username/i).fill("Mahiru");
+  await profilePanel.getByLabel(/city/i).fill("Jerusalem");
   await page.getByRole("button", { name: /save profile/i }).click();
   await expect(page.getByText("Profile saved.")).toBeVisible();
 

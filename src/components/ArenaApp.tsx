@@ -34,8 +34,9 @@ import {
   type MoveInput,
   type PromotionPiece,
 } from "@/domain/chess";
-import type { ChessColor, CoachInsight, GameMode, GameRecord, LeaderboardEntry, RoomColorChoice, RoomState, TimeControl, UserProfile } from "@/domain/types";
+import type { AuthSession, ChessColor, CoachInsight, GameMode, GameRecord, LeaderboardEntry, RoomColorChoice, RoomState, TimeControl, UserProfile } from "@/domain/types";
 import { getAppServices, type AiDifficulty, type AppServices } from "@/services";
+import { AuthPanel } from "./AuthPanel";
 import { ChessBoard } from "./ChessBoard";
 import { ArenaScene } from "./ArenaScene";
 import { MoveList } from "./MoveList";
@@ -44,6 +45,7 @@ import { RoomLinkPanel } from "./RoomLinkPanel";
 import { UpgradeModal } from "./UpgradeModal";
 
 type PendingPromotion = { from: Square; to: Square } | null;
+type ClockState = Record<ChessColor, number>;
 
 const modes: Array<{ mode: GameMode; label: string; icon: typeof Users }> = [
   { mode: "local", label: "Local", icon: Users },
@@ -71,6 +73,11 @@ export function ArenaApp() {
   const [selectedSquare, setSelectedSquare] = useState<Square | null>(null);
   const [pendingPromotion, setPendingPromotion] = useState<PendingPromotion>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [session, setSession] = useState<AuthSession | null>(null);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signup");
+  const [authDraft, setAuthDraft] = useState({ email: "", password: "", username: "Guest Player", city: "Local" });
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [profileDraft, setProfileDraft] = useState({ username: "Guest Player", city: "Local", isPro: false });
   const [savingProfile, setSavingProfile] = useState(false);
   const [playerId, setPlayerId] = useState<string | null>(null);
@@ -88,6 +95,8 @@ export function ArenaApp() {
   const [boardOrientation, setBoardOrientation] = useState<ChessColor>("white");
   const [roomColorChoice, setRoomColorChoice] = useState<RoomColorChoice>("white");
   const [roomTimeControl, setRoomTimeControl] = useState<TimeControl>("rapid");
+  const [localClocks, setLocalClocks] = useState<ClockState>(() => createClockState("rapid"));
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const [resignationNotice, setResignationNotice] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Choose a mode and make the first move.");
   const aiReplyInFlight = useRef(false);
@@ -109,12 +118,47 @@ export function ArenaApp() {
 
   const checkSquare = useMemo(() => getCheckSquare(activeGame.fen), [activeGame.fen]);
   const captured = useMemo(() => getCapturedPieces(activeGame.moves), [activeGame.moves]);
-  const whiteClockSeconds = mode === "friend" && room ? room.clocks.whiteSeconds : timeControlSeconds(roomTimeControl);
-  const blackClockSeconds = mode === "friend" && room ? room.clocks.blackSeconds : timeControlSeconds(roomTimeControl);
+  const friendClocks = useMemo(() => (room ? liveRoomClocks(room, clockNow) : null), [clockNow, room]);
+  const whiteClockSeconds = mode === "friend" && friendClocks ? friendClocks.white : localClocks.white;
+  const blackClockSeconds = mode === "friend" && friendClocks ? friendClocks.black : localClocks.black;
 
   useEffect(() => {
     document.documentElement.classList.toggle("light", theme === "light");
   }, [theme]);
+
+  useEffect(() => {
+    setLocalClocks(createClockState(roomTimeControl));
+  }, [roomTimeControl]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setClockNow(Date.now()), 1000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    if (mode === "friend" || activeGame.status !== "active" || aiThinking) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setLocalClocks((current) => {
+        const next = {
+          ...current,
+          [activeGame.turn]: Math.max(0, current[activeGame.turn] - 1),
+        };
+
+        if (next[activeGame.turn] === 0) {
+          setGame((gameState) => ({ ...gameState, status: "timeout" }));
+          setStatusMessage(`${capitalizeColor(activeGame.turn)} ran out of time.`);
+        }
+
+        return next;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [activeGame.status, activeGame.turn, aiThinking, mode]);
 
   useEffect(() => {
     if (mode === "friend" && playerColor) {
@@ -150,7 +194,8 @@ export function ArenaApp() {
     let mounted = true;
 
     async function load() {
-      const [profileResult, leaderboardResult, historyResult] = await Promise.all([
+      const [sessionResult, profileResult, leaderboardResult, historyResult] = await Promise.all([
+        services.auth.getSession(),
         services.profiles.getCurrentProfile(),
         services.profiles.listLeaderboard(),
         services.games.listHistory(null),
@@ -160,8 +205,17 @@ export function ArenaApp() {
         return;
       }
 
+      if (sessionResult.data) {
+        setSession(sessionResult.data);
+        setAuthDraft((current) => ({ ...current, email: sessionResult.data?.email ?? current.email }));
+      }
       if (profileResult.data) {
         setProfile(profileResult.data);
+        setAuthDraft((current) => ({
+          ...current,
+          username: profileResult.data?.username ?? current.username,
+          city: profileResult.data?.city ?? current.city,
+        }));
         if (!profileDraftDirty.current) {
           setProfileDraft({
             username: profileResult.data.username,
@@ -379,6 +433,7 @@ export function ArenaApp() {
   function handleModeChange(nextMode: GameMode) {
     setMode(nextMode);
     setGame(createInitialGame());
+    setLocalClocks(createClockState(roomTimeControl));
     setSelectedSquare(null);
     setPendingPromotion(null);
     setInsights([]);
@@ -433,6 +488,35 @@ export function ArenaApp() {
     } else {
       setSelectedSquare(null);
     }
+  }
+
+  function handleBoardMoveAttempt(from: Square, to: Square) {
+    if (activeGame.status !== "active" || pendingPromotion || aiThinking || !canMoveInFriendMode) {
+      return;
+    }
+
+    if (mode === "ai" && activeGame.turn === "black") {
+      return;
+    }
+
+    const piece = getPieceAt(activeGame.fen, from);
+
+    if (!piece || piece.color !== activeGame.turn || (mode === "friend" && piece.color !== playerColor)) {
+      setStatusMessage("Move rejected.");
+      return;
+    }
+
+    if (!getLegalMovesForSquare(activeGame, from).some((move) => move.to === to)) {
+      setStatusMessage("Illegal move.");
+      return;
+    }
+
+    if (isPromotionMove(activeGame, from, to)) {
+      setPendingPromotion({ from, to });
+      return;
+    }
+
+    commitSelectedMove({ from, to });
   }
 
   async function commitSelectedMove(move: MoveInput) {
@@ -524,8 +608,67 @@ export function ArenaApp() {
     }
   }
 
+  async function submitAuth() {
+    setAuthBusy(true);
+    setAuthMessage(null);
+    const result =
+      authMode === "signup"
+        ? await services.auth.signUp(authDraft)
+        : await services.auth.signIn({ email: authDraft.email, password: authDraft.password });
+    setAuthBusy(false);
+
+    if (!result.data) {
+      setAuthMessage(result.error ?? "Authentication failed.");
+      return;
+    }
+
+    setSession(result.data);
+    setPlayerId(result.data.userId);
+    setAuthMessage(authMode === "signup" ? "Account created." : "Signed in.");
+    const [profileResult, leaderboardResult, historyResult] = await Promise.all([
+      services.profiles.getCurrentProfile(),
+      services.profiles.listLeaderboard(),
+      services.games.listHistory(result.data.userId),
+    ]);
+
+    if (profileResult.data) {
+      setProfile(profileResult.data);
+      setProfileDraft({
+        username: profileResult.data.username,
+        city: profileResult.data.city,
+        isPro: profileResult.data.isPro,
+      });
+    }
+    if (leaderboardResult.data) {
+      setLeaderboard(leaderboardResult.data);
+    }
+    if (historyResult.data) {
+      setHistory(historyResult.data);
+    }
+  }
+
+  async function signOut() {
+    setAuthBusy(true);
+    await services.auth.signOut();
+    setAuthBusy(false);
+    setSession(null);
+    setPlayerId(null);
+    setProfile(null);
+    setAuthMessage("Signed out.");
+    const profileResult = await services.profiles.getCurrentProfile();
+    if (profileResult.data) {
+      setProfile(profileResult.data);
+      setProfileDraft({
+        username: profileResult.data.username,
+        city: profileResult.data.city,
+        isPro: profileResult.data.isPro,
+      });
+    }
+  }
+
   function resetGame() {
     setGame(createInitialGame());
+    setLocalClocks(createClockState(roomTimeControl));
     setSelectedSquare(null);
     setPendingPromotion(null);
     setInsights([]);
@@ -575,6 +718,24 @@ export function ArenaApp() {
 
         <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)_380px]">
           <aside className="order-2 space-y-4 xl:order-none xl:sticky xl:top-4 xl:self-start">
+            <AuthPanel
+              session={session}
+              mode={authMode}
+              email={authDraft.email}
+              password={authDraft.password}
+              username={authDraft.username}
+              city={authDraft.city}
+              busy={authBusy}
+              message={authMessage}
+              onModeChange={setAuthMode}
+              onEmailChange={(value) => setAuthDraft((current) => ({ ...current, email: value }))}
+              onPasswordChange={(value) => setAuthDraft((current) => ({ ...current, password: value }))}
+              onUsernameChange={(value) => setAuthDraft((current) => ({ ...current, username: value }))}
+              onCityChange={(value) => setAuthDraft((current) => ({ ...current, city: value }))}
+              onSubmit={submitAuth}
+              onSignOut={signOut}
+            />
+
             <section className="arena-panel p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
                 <Activity size={16} className="text-arena-teal" aria-hidden />
@@ -736,6 +897,7 @@ export function ArenaApp() {
                 checkSquare={checkSquare}
                 orientation={boardOrientation}
                 onSquareClick={handleSquareClick}
+                onMoveAttempt={handleBoardMoveAttempt}
               />
 
               <div className="arena-clock-row">
@@ -967,6 +1129,30 @@ function oppositeRoomColor(color: ChessColor): ChessColor {
 
 function timeControlSeconds(value: TimeControl): number {
   return timeControls.find((item) => item.value === value)?.seconds ?? 600;
+}
+
+function createClockState(value: TimeControl): ClockState {
+  const seconds = timeControlSeconds(value);
+
+  return { white: seconds, black: seconds };
+}
+
+function liveRoomClocks(room: RoomState, now: number): ClockState {
+  const clocks = {
+    white: room.clocks.whiteSeconds,
+    black: room.clocks.blackSeconds,
+  };
+
+  if (room.status !== "active" || !room.clocks.lastTickAt) {
+    return clocks;
+  }
+
+  const elapsed = Math.max(0, Math.floor((now - new Date(room.clocks.lastTickAt).getTime()) / 1000));
+
+  return {
+    ...clocks,
+    [room.turn]: Math.max(0, clocks[room.turn] - elapsed),
+  };
 }
 
 function formatClock(totalSeconds: number): string {

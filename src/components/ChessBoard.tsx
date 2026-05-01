@@ -11,6 +11,7 @@ interface ChessBoardProps {
   checkSquare: Square | null;
   orientation?: "white" | "black";
   onSquareClick(square: Square): void;
+  onMoveAttempt?(from: Square, to: Square): void;
 }
 
 export function ChessBoard({
@@ -21,6 +22,7 @@ export function ChessBoard({
   checkSquare,
   orientation = "white",
   onSquareClick,
+  onMoveAttempt,
 }: ChessBoardProps) {
   const squares = orientation === "black" ? [...getBoardSquares(fen)].reverse() : getBoardSquares(fen);
 
@@ -41,6 +43,7 @@ export function ChessBoard({
             isCheck={checkSquare === square.square}
             orientation={orientation}
             onClick={() => onSquareClick(square.square)}
+            onMoveAttempt={onMoveAttempt}
           />
         ))}
       </div>
@@ -56,6 +59,7 @@ interface BoardSquareProps {
   isCheck: boolean;
   orientation: "white" | "black";
   onClick(): void;
+  onMoveAttempt?(from: Square, to: Square): void;
 }
 
 function BoardSquare({
@@ -66,6 +70,7 @@ function BoardSquare({
   isCheck,
   orientation,
   onClick,
+  onMoveAttempt,
 }: BoardSquareProps) {
   const fileIndex = squareState.file.charCodeAt(0) - "a".charCodeAt(0);
   const rankIndex = Number(squareState.rank);
@@ -78,6 +83,30 @@ function BoardSquare({
       data-square={squareState.square}
       data-testid={`square-${squareState.square}`}
       onClick={onClick}
+      draggable={Boolean(squareState.piece)}
+      onDragStart={(event) => {
+        if (!squareState.piece) {
+          event.preventDefault();
+          return;
+        }
+
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", squareState.square);
+      }}
+      onDragOver={(event) => {
+        if (onMoveAttempt) {
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+        }
+      }}
+      onDrop={(event) => {
+        const from = event.dataTransfer.getData("text/plain") as Square;
+
+        if (from && from !== squareState.square) {
+          event.preventDefault();
+          onMoveAttempt?.(from, squareState.square);
+        }
+      }}
       className={[
         "arena-focus board-square relative flex aspect-square items-center justify-center overflow-hidden transition-colors",
         isLight ? "bg-[#d8c9a5]" : "bg-[#486d5b]",

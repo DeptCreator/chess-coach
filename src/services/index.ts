@@ -19,6 +19,7 @@ export function getAppServices(): AppServices {
 
 export type {
   AppServices,
+  AuthService,
   AiDifficulty,
   AiMoveResult,
   AiService,

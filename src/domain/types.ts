@@ -25,11 +25,17 @@ export type CoachClassification =
 
 export interface UserProfile {
   id: string;
+  email?: string | null;
   username: string;
   city: string;
   rating: number;
   avatarUrl: string | null;
   isPro: boolean;
+}
+
+export interface AuthSession {
+  userId: string;
+  email: string;
 }
 
 export interface GameRecord {

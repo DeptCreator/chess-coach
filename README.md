@@ -16,6 +16,7 @@ Most chess apps either focus only on playing or overwhelm users with engine nota
 ## Key Features
 
 - Legal chess board powered by `chess.js`.
+- Click-to-move and drag-and-drop piece movement with rule validation.
 - Local two-player mode on one screen.
 - Friend-link multiplayer with WebSocket sync and reconnect restore.
 - Room setup before friend games:
@@ -23,7 +24,11 @@ Most chess apps either focus only on playing or overwhelm users with engine nota
   - choose Bullet 1+0, Blitz 5+0, or Rapid 10+0;
   - player-side board orientation so your pieces start at the bottom.
 - Board flip control during play.
+- Live clocks for local and AI games, plus room clock display for friend games.
 - Resignation flow with a clear in-game notice.
+- Account panel with register, sign in, and sign out:
+  - mock auth works locally without credentials;
+  - Supabase auth works when environment variables are configured.
 - Stockfish-backed AI opponent with selectable difficulty.
 - AI Coach report with engine-backed insights and template fallback.
 - Saved game history with PGN preview.
@@ -47,6 +52,7 @@ Most chess apps either focus only on playing or overwhelm users with engine nota
 - Stockfish 18 lite WASM worker for AI play and coach analysis
 - WebSocket room server for mock friend-link multiplayer
 - Supabase-ready service adapter and SQL migration
+- Supabase auth/profile persistence when credentials are configured
 - Local mock persistence for demo mode
 - Vitest, Testing Library, and Playwright
 
@@ -96,12 +102,12 @@ npm run test:e2e
 
 Current verification:
 
-- Unit/component tests: `41 passed`
-- Playwright e2e tests: `10 passed`
+- Unit/component tests: `42 passed`
+- Playwright e2e tests: `11 passed`
 - Build: passes with `next build`
 - Lint: passes with `eslint`
 
-The e2e suite covers local moves, AI response, friend room create/join/sync/reconnect, Pro modal, profile persistence, mobile layout, nonblank 3D canvas, reduced motion, board flip, time-control setup, side selection, and resignation notice.
+The e2e suite covers local moves, drag-and-drop, demo registration, AI response, friend room create/join/sync/reconnect, Pro modal, profile persistence, mobile layout, nonblank 3D canvas, reduced motion, board flip, time-control setup, side selection, and resignation notice.
 
 ## Screenshots
 
@@ -113,7 +119,7 @@ Local screenshot files are included for demo notes:
 ## Current Limitations
 
 - Stripe checkout is represented by Pro-ready UI only.
-- Supabase live mode requires real project credentials, the SQL migration, and Realtime enabled for the `rooms` table.
+- Supabase live mode requires real project credentials, the SQL migration, anonymous/email auth settings, and Realtime enabled for the `rooms` table.
 - AI Coach is a prototype: it uses engine-backed analysis where available and falls back to readable template insights.
 - The leaderboard is a product prototype backed by mock/Supabase profile data, not a full ranked matchmaking system.
 
@@ -123,6 +129,7 @@ This project targets the "Great" level of the challenge:
 
 - It is a web application, not a static board.
 - It supports legal chess, local play, AI play, themes, and responsive UI.
+- It supports real registration/sign-in flow through mock auth or Supabase auth.
 - It includes friend-link multiplayer with WebSockets.
 - It includes an AI Coach concept after games.
 - It includes profile, history, leaderboard, and retention surfaces.

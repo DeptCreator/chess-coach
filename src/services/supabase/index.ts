@@ -9,6 +9,7 @@ import {
   type MoveInput,
 } from "@/domain/chess";
 import type {
+  AuthSession,
   CoachInsight,
   GameRecord,
   LeaderboardEntry,
@@ -18,6 +19,7 @@ import type {
 } from "@/domain/types";
 import type {
   AppServices,
+  AuthService,
   CoachService,
   GameService,
   IdentityService,
@@ -34,6 +36,7 @@ import { createEngineCoachInsights } from "../engine/coach";
 
 export function createSupabaseServices(client: SupabaseClient = createSupabaseBrowserClient()): AppServices {
   return {
+    auth: new SupabaseAuthService(client),
     identity: new SupabaseIdentityService(client),
     profiles: new SupabaseProfileService(client),
     rooms: new SupabaseRoomService(client),
@@ -42,6 +45,78 @@ export function createSupabaseServices(client: SupabaseClient = createSupabaseBr
     coach: new SupabaseCoachService(client),
     source: "supabase",
   };
+}
+
+class SupabaseAuthService implements AuthService {
+  constructor(private readonly client: SupabaseClient) {}
+
+  async getSession(): Promise<ServiceResult<AuthSession | null>> {
+    const { data, error } = await this.client.auth.getSession();
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    if (!data.session?.user) {
+      return ok(null);
+    }
+
+    return ok({
+      userId: data.session.user.id,
+      email: data.session.user.email ?? "",
+    });
+  }
+
+  async signUp(input: { email: string; password: string; username: string; city: string }): Promise<ServiceResult<AuthSession>> {
+    const { data, error } = await this.client.auth.signUp({
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+      options: {
+        data: {
+          username: input.username,
+          city: input.city,
+        },
+      },
+    });
+
+    if (error || !data.user) {
+      return fail(error?.message ?? "Could not create account.");
+    }
+
+    await this.client.from("profiles").upsert({
+      id: data.user.id,
+      email: data.user.email,
+      username: input.username.trim() || data.user.email?.split("@")[0] || "Player",
+      city: input.city.trim() || "Local",
+      avatar_url: null,
+      is_pro: false,
+    });
+
+    return ok({ userId: data.user.id, email: data.user.email ?? "" });
+  }
+
+  async signIn(input: { email: string; password: string }): Promise<ServiceResult<AuthSession>> {
+    const { data, error } = await this.client.auth.signInWithPassword({
+      email: input.email.trim().toLowerCase(),
+      password: input.password,
+    });
+
+    if (error || !data.user) {
+      return fail(error?.message ?? "Could not sign in.");
+    }
+
+    return ok({ userId: data.user.id, email: data.user.email ?? "" });
+  }
+
+  async signOut(): Promise<ServiceResult<null>> {
+    const { error } = await this.client.auth.signOut();
+
+    if (error) {
+      return fail(error.message);
+    }
+
+    return ok(null);
+  }
 }
 
 class SupabaseIdentityService implements IdentityService {
@@ -102,6 +177,7 @@ class SupabaseProfileService implements ProfileService {
       .from("profiles")
       .upsert({
         id: userData.user.id,
+        email: userData.user.email,
         username: input.username,
         city: input.city,
         avatar_url: input.avatarUrl,
@@ -177,6 +253,9 @@ class SupabaseRoomService implements RoomService {
         id,
         white_player_id: hostColor === "white" ? playerId : null,
         black_player_id: hostColor === "black" ? playerId : null,
+        host_color: hostColor,
+        time_control: options.timeControl,
+        resigned_by: null,
         fen: initialFen,
         pgn: "",
         status: "waiting",
@@ -335,6 +414,9 @@ class SupabaseRoomService implements RoomService {
       .update({
         white_player_id: room.whitePlayerId,
         black_player_id: room.blackPlayerId,
+        host_color: room.hostColor,
+        time_control: room.timeControl,
+        resigned_by: room.resignedBy ?? null,
         fen: room.fen,
         pgn: room.pgn,
         status: room.status,
@@ -462,6 +544,7 @@ class SupabaseCoachService implements CoachService {
 function mapProfile(row: Record<string, any>): UserProfile {
   return {
     id: row.id,
+    email: row.email ?? null,
     username: row.username,
     city: row.city ?? "",
     rating: row.rating,
@@ -475,8 +558,8 @@ function mapRoom(row: Record<string, any>): RoomState {
     id: row.id,
     whitePlayerId: row.white_player_id,
     blackPlayerId: row.black_player_id,
-    hostColor: row.white_player_id ? "white" : "black",
-    timeControl: inferTimeControl(Number(row.white_seconds)),
+    hostColor: row.host_color ?? (row.white_player_id ? "white" : "black"),
+    timeControl: row.time_control ?? inferTimeControl(Number(row.white_seconds)),
     resignedBy: row.resigned_by,
     fen: row.fen,
     pgn: row.pgn,
@@ -544,6 +627,7 @@ function mapGame(row: Record<string, any>): GameRecord {
 function createDefaultProfileRow(userId: string) {
   return {
     id: userId,
+    email: null,
     username: "Guest Player",
     city: "Local",
     rating: 1200,

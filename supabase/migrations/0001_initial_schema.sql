@@ -2,6 +2,7 @@ create extension if not exists "pgcrypto";
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  email text,
   username text not null,
   city text,
   rating integer not null default 1200,
@@ -18,6 +19,9 @@ create table if not exists public.rooms (
   id text primary key,
   white_player_id uuid references auth.users(id) on delete set null,
   black_player_id uuid references auth.users(id) on delete set null,
+  host_color text not null default 'white',
+  time_control text not null default 'rapid',
+  resigned_by text,
   fen text not null,
   pgn text not null default '',
   status text not null,
@@ -29,7 +33,10 @@ create table if not exists public.rooms (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint rooms_status_check check (status in ('waiting', 'active', 'checkmate', 'stalemate', 'draw', 'resigned', 'timeout', 'abandoned')),
-  constraint rooms_turn_check check (turn in ('white', 'black'))
+  constraint rooms_turn_check check (turn in ('white', 'black')),
+  constraint rooms_host_color_check check (host_color in ('white', 'black')),
+  constraint rooms_time_control_check check (time_control in ('bullet', 'blitz', 'rapid')),
+  constraint rooms_resigned_by_check check (resigned_by is null or resigned_by in ('white', 'black'))
 );
 
 create table if not exists public.games (
