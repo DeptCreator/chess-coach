@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg: #0a0d0f;
+  --surface: #101417;
+  --surface-2: #161d21;
+  --text: #f4f0e8;
+  --muted: #a9b4b8;
+  --line: rgba(255, 255, 255, 0.1);
+  --teal: #27c7a3;
+  --gold: #d6b35a;
+  --amber: #f2b84b;
+  --coral: #ef6461;
+}
+
+.light {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --surface: #fffaf0;
+  --surface-2: #ece6da;
+  --text: #162024;
+  --muted: #637177;
+  --line: rgba(22, 32, 36, 0.14);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100svh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 18% 8%, rgba(39, 199, 163, 0.15), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(214, 179, 90, 0.1), transparent 28rem),
+    linear-gradient(135deg, var(--bg), #101417 56%, #0c1012);
+  color: var(--text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+::selection {
+  background: rgba(39, 199, 163, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+.arena-focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.arena-focus:focus-visible {
+  outline-color: var(--teal);
+}
+
+.arena-panel {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.062), rgba(255, 255, 255, 0.028)),
+    color-mix(in srgb, var(--surface) 88%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 18px 55px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.modal-surface {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(39, 199, 163, 0.11), transparent 16rem),
+    var(--surface);
+}
+
+.arena-input {
+  min-height: 2.5rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+  padding: 0 0.75rem;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.arena-clock-row {
+  display: flex;
+  width: 100%;
+  max-width: 720px;
+  min-height: 4.125rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem 1rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.chess-board-stage {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  perspective: 1400px;
+}
+
+.chess-board-stage > [data-testid="chess-board"] {
+  transform: rotateX(4deg);
+  transform-origin: center;
+  box-shadow:
+    0 28px 90px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.board-square::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), transparent 42%, rgba(0, 0, 0, 0.08));
+  pointer-events: none;
+}
+
+.chess-piece {
+  transform-origin: 50% 75%;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.board-square:hover .chess-piece {
+  transform: translateY(-3px) scale(1.04);
+}
+
+.last-move-highlight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  animation: lastMoveFade 1.5s ease-out both;
+  background: rgba(214, 179, 90, 0.28);
+}
+
+.legal-move-hint {
+  animation: legalHintIn 180ms ease-out both;
+  box-shadow: 0 0 18px rgba(39, 199, 163, 0.18);
+}
+
+.king-check {
+  animation: checkPulse 950ms ease-in-out infinite;
+}
+
+.coach-insight {
+  animation: insightReveal 360ms ease-out both;
+}
+
+@keyframes legalHintIn {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes lastMoveFade {
+  from {
+    opacity: 0.95;
+  }
+  to {
+    opacity: 0.34;
+  }
+}
+
+@keyframes checkPulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 rgba(239, 100, 97, 0.55);
+  }
+  50% {
+    box-shadow: inset 0 0 0 10px rgba(239, 100, 97, 0.16);
+  }
+}
+
+@keyframes insightReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .arena-clock-row {
+    min-height: 3.5rem;
+    padding: 0.625rem 0.75rem;
+  }
+
+  .chess-board-stage > [data-testid="chess-board"] {
+    transform: none;
+  }
+}

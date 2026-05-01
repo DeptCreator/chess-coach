@@ -1,0 +1,201 @@
+- main [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]:
+        - paragraph [ref=e6]: Chess AI Coach Arena
+        - heading "Play, save, review." [level=1] [ref=e7]
+      - generic [ref=e8]:
+        - button "dark" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+          - text: dark
+        - button "Pro" [ref=e12] [cursor=pointer]:
+          - img [ref=e13]
+          - text: Pro
+    - generic [ref=e15]:
+      - complementary [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]: Modes
+          - generic [ref=e19]:
+            - button "Local" [ref=e20] [cursor=pointer]:
+              - img [ref=e21]
+              - text: Local
+            - button "Friend Link" [ref=e26] [cursor=pointer]:
+              - img [ref=e27]
+              - text: Friend Link
+            - button "vs AI" [ref=e32] [cursor=pointer]:
+              - img [ref=e33]
+              - text: vs AI
+        - generic [ref=e36]:
+          - generic [ref=e37]: Profile
+          - generic [ref=e38]:
+            - generic [ref=e39]: G
+            - generic [ref=e40]:
+              - generic [ref=e41]: Guest Player
+              - generic [ref=e42]: Local · 1200
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - img [ref=e45]
+            - heading "Friend Room" [level=2] [ref=e48]
+          - button "Create Room" [ref=e49] [cursor=pointer]:
+            - img [ref=e50]
+            - text: Create Room
+      - generic [ref=e53]:
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - generic [ref=e56]: Black
+            - generic [ref=e57]: Player Two
+          - generic [ref=e58]: 10:00
+        - generic "Chess board" [ref=e59]:
+          - button "a8 black r" [ref=e60] [cursor=pointer]:
+            - generic: "8"
+            - generic [ref=e61]: ♜
+          - button "b8 black n" [ref=e62] [cursor=pointer]:
+            - generic [ref=e63]: ♞
+          - button "c8 black b" [ref=e64] [cursor=pointer]:
+            - generic [ref=e65]: ♝
+          - button "d8 black q" [ref=e66] [cursor=pointer]:
+            - generic [ref=e67]: ♛
+          - button "e8 black k" [ref=e68] [cursor=pointer]:
+            - generic [ref=e69]: ♚
+          - button "f8 black b" [ref=e70] [cursor=pointer]:
+            - generic [ref=e71]: ♝
+          - button "g8 black n" [ref=e72] [cursor=pointer]:
+            - generic [ref=e73]: ♞
+          - button "h8 black r" [ref=e74] [cursor=pointer]:
+            - generic [ref=e75]: ♜
+          - button "a7 black p" [ref=e76] [cursor=pointer]:
+            - generic: "7"
+            - generic [ref=e77]: ♟
+          - button "b7 black p" [ref=e78] [cursor=pointer]:
+            - generic [ref=e79]: ♟
+          - button "c7 black p" [ref=e80] [cursor=pointer]:
+            - generic [ref=e81]: ♟
+          - button "d7 black p" [ref=e82] [cursor=pointer]:
+            - generic [ref=e83]: ♟
+          - button "e7 black p" [ref=e84] [cursor=pointer]:
+            - generic [ref=e85]: ♟
+          - button "f7 black p" [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]: ♟
+          - button "g7 black p" [ref=e88] [cursor=pointer]:
+            - generic [ref=e89]: ♟
+          - button "h7 black p" [ref=e90] [cursor=pointer]:
+            - generic [ref=e91]: ♟
+          - button "a6" [ref=e92] [cursor=pointer]:
+            - generic: "6"
+          - button "b6" [ref=e93] [cursor=pointer]
+          - button "c6" [ref=e94] [cursor=pointer]
+          - button "d6" [ref=e95] [cursor=pointer]
+          - button "e6" [ref=e96] [cursor=pointer]
+          - button "f6" [ref=e97] [cursor=pointer]
+          - button "g6" [ref=e98] [cursor=pointer]
+          - button "h6" [ref=e99] [cursor=pointer]
+          - button "a5" [ref=e100] [cursor=pointer]:
+            - generic: "5"
+          - button "b5" [ref=e101] [cursor=pointer]
+          - button "c5" [ref=e102] [cursor=pointer]
+          - button "d5" [ref=e103] [cursor=pointer]
+          - button "e5" [ref=e104] [cursor=pointer]
+          - button "f5" [ref=e105] [cursor=pointer]
+          - button "g5" [ref=e106] [cursor=pointer]
+          - button "h5" [ref=e107] [cursor=pointer]
+          - button "a4" [ref=e108] [cursor=pointer]:
+            - generic: "4"
+          - button "b4" [ref=e109] [cursor=pointer]
+          - button "c4" [ref=e110] [cursor=pointer]
+          - button "d4" [ref=e111] [cursor=pointer]
+          - button "e4" [ref=e112] [cursor=pointer]
+          - button "f4" [ref=e113] [cursor=pointer]
+          - button "g4" [ref=e114] [cursor=pointer]
+          - button "h4" [ref=e115] [cursor=pointer]
+          - button "a3" [ref=e116] [cursor=pointer]:
+            - generic: "3"
+          - button "b3" [ref=e117] [cursor=pointer]
+          - button "c3" [ref=e118] [cursor=pointer]
+          - button "d3" [ref=e119] [cursor=pointer]
+          - button "e3" [ref=e120] [cursor=pointer]
+          - button "f3" [ref=e121] [cursor=pointer]
+          - button "g3" [ref=e122] [cursor=pointer]
+          - button "h3" [ref=e123] [cursor=pointer]
+          - button "a2 white p" [ref=e124] [cursor=pointer]:
+            - generic: "2"
+            - generic [ref=e125]: ♙
+          - button "b2 white p" [ref=e126] [cursor=pointer]:
+            - generic [ref=e127]: ♙
+          - button "c2 white p" [ref=e128] [cursor=pointer]:
+            - generic [ref=e129]: ♙
+          - button "d2 white p" [ref=e130] [cursor=pointer]:
+            - generic [ref=e131]: ♙
+          - button "e2 white p" [ref=e132] [cursor=pointer]:
+            - generic [ref=e133]: ♙
+          - button "f2 white p" [ref=e134] [cursor=pointer]:
+            - generic [ref=e135]: ♙
+          - button "g2 white p" [ref=e136] [cursor=pointer]:
+            - generic [ref=e137]: ♙
+          - button "h2 white p" [ref=e138] [cursor=pointer]:
+            - generic [ref=e139]: ♙
+          - button "a1 white r" [ref=e140] [cursor=pointer]:
+            - generic: "1"
+            - generic: a
+            - generic [ref=e141]: ♖
+          - button "b1 white n" [ref=e142] [cursor=pointer]:
+            - generic: b
+            - generic [ref=e143]: ♘
+          - button "c1 white b" [ref=e144] [cursor=pointer]:
+            - generic: c
+            - generic [ref=e145]: ♗
+          - button "d1 white q" [ref=e146] [cursor=pointer]:
+            - generic: d
+            - generic [ref=e147]: ♕
+          - button "e1 white k" [ref=e148] [cursor=pointer]:
+            - generic: e
+            - generic [ref=e149]: ♔
+          - button "f1 white b" [ref=e150] [cursor=pointer]:
+            - generic: f
+            - generic [ref=e151]: ♗
+          - button "g1 white n" [ref=e152] [cursor=pointer]:
+            - generic: g
+            - generic [ref=e153]: ♘
+          - button "h1 white r" [ref=e154] [cursor=pointer]:
+            - generic: h
+            - generic [ref=e155]: ♖
+        - generic [ref=e156]:
+          - generic [ref=e157]:
+            - generic [ref=e158]: White
+            - generic [ref=e159]: Guest Player
+          - generic [ref=e160]: 10:00
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - generic [ref=e163]: active
+            - generic [ref=e164]: white to move · Choose a mode and make the first move.
+          - generic [ref=e165]:
+            - button "New" [ref=e166] [cursor=pointer]:
+              - img [ref=e167]
+              - text: New
+            - button "Resign" [ref=e170] [cursor=pointer]:
+              - img [ref=e171]
+              - text: Resign
+      - complementary [ref=e173]:
+        - generic [ref=e174]:
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - heading "Moves" [level=2] [ref=e177]
+              - generic [ref=e178]: 0 plies
+            - generic [ref=e180]: No moves yet.
+          - generic [ref=e181]:
+            - generic [ref=e182]:
+              - generic [ref=e183]: White captured
+              - generic [ref=e184]: None
+            - generic [ref=e185]:
+              - generic [ref=e186]: Black captured
+              - generic [ref=e187]: None
+        - generic [ref=e189]:
+          - img [ref=e190]
+          - heading "Leaderboard" [level=2] [ref=e196]
+        - generic [ref=e197]:
+          - generic [ref=e198]:
+            - img [ref=e199]
+            - heading "History" [level=2] [ref=e203]
+          - paragraph [ref=e204]: Completed games will appear here.
+        - generic [ref=e205]:
+          - generic [ref=e206]: AI Coach
+          - paragraph [ref=e207]: Finish a game to generate three template coach insights.
